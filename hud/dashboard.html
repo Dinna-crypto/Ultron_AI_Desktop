@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ULTRON DASHBOARD</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --red: #ff2b1f;
+    --red-bright: #ff7a5c;
+    --red-dim: #4a0f0a;
+    --red-glow: rgba(255, 43, 31, 0.45);
+    --void: #050201;
+    --panel: rgba(255, 43, 31, 0.04);
+    --text: #ffe1d8;
+    --text-dim: rgba(255, 225, 216, 0.55);
+  }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background:
+      radial-gradient(circle at 50% 45%, #1a0604 0%, var(--void) 65%);
+    color: var(--text);
+    font-family: 'Share Tech Mono', 'Consolas', monospace;
+    overflow: hidden;
+    user-select: none;
+  }
+  #grid-overlay {
+    position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,43,31,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,43,31,0.05) 1px, transparent 1px);
+    background-size: 38px 38px;
+    mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 75%);
+  }
+
+  .panel-label {
+    font-family: 'Orbitron', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-size: 10px;
+    color: var(--red-bright);
+    opacity: 0.8;
+    margin-bottom: 10px;
+  }
+
+  /* ---- Top-left: emblem + clock ---- */
+  #id-panel {
+    position: fixed; top: 26px; left: 30px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  #emblem { width: 54px; height: 54px; filter: drop-shadow(0 0 8px var(--red-glow)); }
+  #id-text { font-family: 'Orbitron', sans-serif; }
+  #id-text .name { font-size: 16px; font-weight: 700; letter-spacing: 3px; color: var(--red-bright); }
+  #id-text .sub { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); margin-top: 3px; }
+
+  #clock-panel { position: fixed; top: 108px; left: 30px; }
+  #clock-date { font-size: 12px; letter-spacing: 3px; color: var(--red-bright); opacity: 0.85; }
+  #clock-time {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 46px; font-weight: 900; color: var(--text);
+    text-shadow: 0 0 18px var(--red-glow);
+    letter-spacing: 2px; margin-top: 2px;
+  }
+
+  /* ---- Top-right: analog clock + controls ---- */
+  #analog-wrap { position: fixed; top: 26px; right: 30px; display: flex; align-items: flex-start; gap: 18px; }
+  #ctrl-cluster { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+  .ctrl-btn {
+    font-family: 'Orbitron', sans-serif;
+    background: rgba(255,43,31,0.06); border: 1px solid var(--red-dim);
+    color: var(--red-bright); font-size: 9px; letter-spacing: 2px;
+    padding: 8px 10px; cursor: pointer; border-radius: 2px;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+  .ctrl-btn:hover, .ctrl-btn:active { background: rgba(255,43,31,0.2); box-shadow: 0 0 10px var(--red-glow); }
+  .ctrl-btn svg { width: 12px; height: 12px; }
+
+  #analog-clock { width: 92px; height: 92px; position: relative; }
+  #analog-clock svg { width: 100%; height: 100%; }
+  .hand { transform-origin: 50px 50px; }
+
+  /* ---- Left column: quick launch icon list ---- */
+  #launch-panel { position: fixed; top: 210px; left: 30px; width: 176px; }
+  .launch-btn {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    background: transparent; border: none; border-left: 2px solid transparent;
+    color: var(--text); padding: 9px 4px 9px 10px; margin-bottom: 2px;
+    font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: 1px;
+    cursor: pointer; text-align: left; transition: all 0.18s ease;
+  }
+  .launch-btn svg { width: 16px; height: 16px; stroke: var(--red-bright); flex-shrink: 0; opacity: 0.85; }
+  .launch-btn:hover, .launch-btn:active {
+    background: rgba(255,43,31,0.08); border-left: 2px solid var(--red);
+    color: var(--red-bright);
+  }
+
+  /* ---- Left-mid: CPU / MEM ring gauges ---- */
+  #mini-gauges { position: fixed; top: 470px; left: 30px; display: flex; gap: 20px; }
+  .gauge { position: relative; width: 84px; height: 84px; }
+  .gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gauge-track { fill: none; stroke: rgba(255,43,31,0.12); stroke-width: 5; }
+  .gauge-tick { stroke: rgba(255,43,31,0.3); stroke-width: 1; }
+  .gauge-fill {
+    fill: none; stroke: var(--red); stroke-width: 5; stroke-linecap: round;
+    filter: drop-shadow(0 0 5px var(--red-glow)); transition: stroke-dashoffset 0.6s ease;
+  }
+  .gauge-label {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .gauge-percent { font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+  .gauge-name { font-size: 8px; letter-spacing: 2px; color: var(--text-dim); margin-top: 2px; }
+
+  /* ---- Center: reactor core ---- */
+  #core-stage {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 380px; height: 380px;
+  }
+  #core-stage svg { width: 100%; height: 100%; overflow: visible; }
+  .core-ring { fill: none; stroke: var(--red-dim); }
+  .core-tick { stroke: rgba(255,122,92,0.55); stroke-width: 2; }
+  .core-glow-fill { fill: var(--red); opacity: 0.9; filter: blur(3px); }
+  .core-dim-fill { fill: var(--red-dim); filter: blur(12px); }
+  .spin-a { animation: spin 26s linear infinite; }
+  .spin-b { animation: spin 40s linear infinite reverse; }
+  .spin-c { animation: spin 70s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .pulse { animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+  #core-readout {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center; pointer-events: none;
+  }
+  #core-percent {
+    font-family: 'Orbitron', sans-serif; font-size: 30px; font-weight: 900;
+    color: var(--text); text-shadow: 0 0 16px var(--red-glow);
+  }
+  #core-sub { font-size: 9px; letter-spacing: 3px; color: var(--red-bright); margin-top: 2px; }
+  #core-title {
+    position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%);
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 8px; font-size: 13px; color: var(--red-bright); opacity: 0.85;
+  }
+
+  /* ---- Right column: system readout ---- */
+  #sys-panel { position: fixed; top: 130px; right: 30px; width: 220px; text-align: right; }
+  #sys-panel .row { margin-bottom: 14px; }
+  #sys-panel .row .lbl {
+    font-size: 9px; letter-spacing: 3px; color: var(--text-dim); margin-bottom: 3px;
+  }
+  #sys-panel .row .val {
+    font-family: 'Orbitron', sans-serif; font-size: 20px; color: var(--red-bright);
+    text-shadow: 0 0 10px var(--red-glow);
+  }
+  #sys-panel .row .sub { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+  /* ---- Right-mid: disk dial ---- */
+  #disk-dial { position: fixed; top: 400px; right: 30px; width: 130px; height: 130px; }
+  #disk-dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+
+  /* ---- Bottom bar ---- */
+  #status-bar {
+    position: fixed; bottom: 24px; left: 30px; right: 30px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; letter-spacing: 1px; color: var(--text-dim);
+  }
+  #status-bar .seg { display: flex; align-items: center; gap: 10px; }
+  #battery-bar-track {
+    width: 60px; height: 10px; border: 1px solid var(--red-dim); border-radius: 2px;
+    padding: 2px; box-sizing: border-box;
+  }
+  #battery-bar-fill { height: 100%; background: var(--red); box-shadow: 0 0 6px var(--red-glow); width: 0%; transition: width 0.6s ease; }
+
+  .bracket { position: fixed; width: 34px; height: 34px; border-color: var(--red-dim); opacity: 0.7; }
+  .bracket-tl { top: 12px; left: 12px; border-top: 1px solid; border-left: 1px solid; }
+  .bracket-tr { top: 12px; right: 12px; border-top: 1px solid; border-right: 1px solid; }
+  .bracket-bl { bottom: 12px; left: 12px; border-bottom: 1px solid; border-left: 1px solid; }
+  .bracket-br { bottom: 12px; right: 12px; border-bottom: 1px solid; border-right: 1px solid; }
+
+  #reply-toast {
+    position: fixed; top: 26px; left: 50%; transform: translateX(-50%);
+    background: rgba(10,2,2,0.92); border: 1px solid var(--red-dim);
+    padding: 9px 18px; font-size: 12px; color: var(--red-bright);
+    opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+    max-width: 60vw; text-align: center; border-radius: 2px;
+    box-shadow: 0 0 14px var(--red-glow);
+  }
+  #reply-toast.show { opacity: 1; }
+
+  /* ---- Voice state reactivity (driven by main.py's websocket) ---- */
+  body[data-state="listening"] .core-glow-fill,
+  body[data-state="listening"] .core-dim-fill { fill: var(--red-bright); }
+  body[data-state="listening"] .core-ring { stroke: var(--red-bright); }
+
+  body[data-state="thinking"] .spin-a,
+  body[data-state="thinking"] .spin-b,
+  body[data-state="thinking"] .spin-c { animation-duration: 4s; }
+
+  body[data-state="gesture_active"] .core-glow-fill,
+  body[data-state="gesture_active"] .core-dim-fill { fill: #35c3ff; }
+  body[data-state="gesture_active"] .core-ring { stroke: #1a5f75; }
+
+  body[data-state="sentry"] .core-glow-fill,
+  body[data-state="sentry"] .core-dim-fill { fill: #4ade80; }
+  body[data-state="sentry"] .core-ring { stroke: #1c5c38; }
+
+  #voice-transcript {
+    position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: var(--text-dim); letter-spacing: 1px;
+    max-width: 50vw; text-align: center; z-index: 10;
+  }
+</style>
+</head>
+<body>
+  <div id="grid-overlay"></div>
+  <div class="bracket bracket-tl"></div>
+  <div class="bracket bracket-tr"></div>
+  <div class="bracket bracket-bl"></div>
+  <div class="bracket bracket-br"></div>
+
+  <!-- Identity + clock -->
+  <div id="id-panel">
+    <svg id="emblem" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46" fill="none" stroke="var(--red)" stroke-width="2"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="var(--red-dim)" stroke-width="1"/>
+      <polygon points="50,20 74,64 26,64" fill="none" stroke="var(--red-bright)" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="50" r="5" fill="var(--red)"/>
+    </svg>
+    <div id="id-text">
+      <div class="name">ULTRON OS</div>
+      <div class="sub">V.2.0 &mdash; RED PROTOCOL</div>
+    </div>
+  </div>
+  <div id="clock-panel">
+    <div id="clock-date">-----</div>
+    <div id="clock-time">--:--</div>
+  </div>
+
+  <!-- Analog clock + controls -->
+  <div id="analog-wrap">
+    <div id="ctrl-cluster">
+      <button class="ctrl-btn" onclick="runCmd('lock pc')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        LOCK
+      </button>
+      <button class="ctrl-btn" onclick="runCmd('take a screenshot')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+        SHOT
+      </button>
+    </div>
+    <div id="analog-clock">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="47" fill="none" stroke="var(--red-dim)" stroke-width="1.5"/>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,43,31,0.15)" stroke-width="1"/>
+        <g id="tick-marks-analog"></g>
+        <line id="hand-hour" class="hand" x1="50" y1="50" x2="50" y2="30" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+        <line id="hand-min" class="hand" x1="50" y1="50" x2="50" y2="20" stroke="var(--red-bright)" stroke-width="2" stroke-linecap="round"/>
+        <line id="hand-sec" class="hand" x1="50" y1="50" x2="50" y2="16" stroke="var(--red)" stroke-width="1" stroke-linecap="round"/>
+        <circle cx="50" cy="50" r="2.5" fill="var(--red-bright)"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Quick launch -->
+  <div id="launch-panel">
+    <div class="panel-label">Quick Launch</div>
+    <button class="launch-btn" onclick="runCmd('open chrome')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v6M5.2 16.5l5.2-3M18.8 16.5l-5.2-3"/></svg>
+      Chrome
+    </button>
+    <button class="launch-btn" onclick="runCmd('open vscode')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="8 6 2 12 8 18"/><polyline points="16 6 22 12 16 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>
+      VS Code
+    </button>
+    <button class="launch-btn" onclick="runCmd('open explorer')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+      File Explorer
+    </button>
+    <button class="launch-btn" onclick="runCmd('open calculator')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="8" y2="15"/><line x1="12" y1="15" x2="12" y2="15"/><line x1="16" y1="15" x2="16" y2="15"/></svg>
+      Calculator
+    </button>
+    <button class="launch-btn" onclick="runCmd('open notepad')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 3h12l4 4v14H4z"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="14" y2="15"/></svg>
+      Notepad
+    </button>
+    <button class="launch-btn" onclick="runCmd('open spotify')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M7 10c3-1 7-1 10 1M7.5 13c2.5-.8 5.5-.6 8 .8M8 16c2-.6 4-.4 6 .6"/></svg>
+      Spotify
+    </button>
+  </div>
+
+  <!-- CPU / MEM mini gauges -->
+  <div id="mini-gauges">
+    <div class="gauge" id="gauge-cpu">
+      <svg viewBox="0 0 100 100">
+        <circle class="gauge-track" cx="50" cy="50" r="42"/>
+        <circle class="gauge-fill" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"/>
+      </svg>
+      <div class="gauge-label"><div class="gauge-percent">--%</div><div class="gauge-name">CPU</div></div>
+    </div>
+    <div class="gauge" id="gauge-mem">
+      <svg viewBox="0 0 100 100">
+        <circle class="gauge-track" cx="50" cy="50" r="42"/>
+        <circle class="gauge-fill" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"/>
+      </svg>
+      <div class="gauge-label"><div class="gauge-percent">--%</div><div class="gauge-name">MEMORY</div></div>
+    </div>
+  </div>
+
+  <!-- Reactor core -->
+  <div id="core-stage">
+    <svg viewBox="0 0 400 400">
+      <g class="spin-a" transform-origin="200 200">
+        <circle class="core-ring" cx="200" cy="200" r="185" stroke-width="1.5"/>
+        <g id="core-ticks-outer"></g>
+      </g>
+      <g class="spin-b" transform-origin="200 200">
+        <circle class="core-ring" cx="200" cy="200" r="150" stroke-width="2" stroke-dasharray="6 10"/>
+      </g>
+      <g class="spin-c" transform-origin="200 200">
+        <circle class="core-ring" cx="200" cy="200" r="115" stroke-width="1"/>
+        <g id="core-ticks-inner"></g>
+      </g>
+      <circle class="core-dim-fill pulse" cx="200" cy="200" r="60"/>
+      <circle class="core-glow-fill pulse" cx="200" cy="200" r="30"/>
+    </svg>
+    <div id="core-readout">
+      <div id="core-percent">--%</div>
+      <div id="core-sub">SYSTEM LOAD</div>
+    </div>
+    <div id="core-title">ULTRON</div>
+  </div>
+
+  <!-- System readout -->
+  <div id="sys-panel">
+    <div class="panel-label" style="text-align:right;">System Status</div>
+    <div class="row">
+      <div class="lbl">BATTERY</div>
+      <div class="val" id="battery-value">--%</div>
+      <div class="sub" id="battery-sub">N/A</div>
+    </div>
+    <div class="row">
+      <div class="lbl">NETWORK SENT / RECV</div>
+      <div class="val" id="net-value">-- / --</div>
+      <div class="sub">gigabytes</div>
+    </div>
+    <div class="row">
+      <div class="lbl">UPTIME LINK</div>
+      <div class="val" style="font-size:14px;" id="uptime-status">ULTRON ONLINE</div>
+    </div>
+  </div>
+
+  <!-- Disk dial -->
+  <div id="disk-dial" class="gauge" title="Disk usage">
+    <svg viewBox="0 0 100 100">
+      <circle class="gauge-track" cx="50" cy="50" r="42"/>
+      <circle class="gauge-fill" id="gauge-disk-fill" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"/>
+    </svg>
+    <div class="gauge-label"><div class="gauge-percent" id="gauge-disk-percent">--%</div><div class="gauge-name">DISK</div></div>
+  </div>
+  <!-- hidden holder kept for JS compatibility -->
+  <div id="gauge-disk" style="display:none;"></div>
+
+  <!-- Status bar -->
+  <div id="status-bar">
+    <div class="seg">
+      <span>NET SENT/RECV:</span>
+      <span id="network-status">-- / -- GB</span>
+    </div>
+    <div class="seg">
+      <span>BATTERY</span>
+      <div id="battery-bar-track"><div id="battery-bar-fill"></div></div>
+      <span id="battery-status">--</span>
+    </div>
+    <div class="seg">
+      <span id="uptime-status-bottom">ULTRON ONLINE</span>
+    </div>
+  </div>
+
+  <div id="reply-toast"></div>
+  <div id="voice-transcript"></div>
+
+<script>
+  // ---- build tick marks ----
+  function buildTicks(containerId, count, r1, r2, cx, cy) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const g = document.getElementById(containerId);
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const x1 = cx + r1 * Math.cos(a);
+      const y1 = cy + r1 * Math.sin(a);
+      const x2 = cx + r2 * Math.cos(a);
+      const y2 = cy + r2 * Math.sin(a);
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('class', 'core-tick');
+      g.appendChild(line);
+    }
+  }
+  buildTicks('core-ticks-outer', 72, 178, 185, 200, 200);
+  buildTicks('core-ticks-inner', 48, 108, 115, 200, 200);
+
+  function buildAnalogTicks() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const g = document.getElementById('tick-marks-analog');
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const r1 = i % 3 === 0 ? 40 : 44;
+      const x1 = 50 + r1 * Math.cos(a), y1 = 50 + r1 * Math.sin(a);
+      const x2 = 50 + 47 * Math.cos(a), y2 = 50 + 47 * Math.sin(a);
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('stroke', 'var(--red-bright)');
+      line.setAttribute('stroke-width', i % 3 === 0 ? 1.6 : 0.8);
+      g.appendChild(line);
+    }
+  }
+  buildAnalogTicks();
+
+  function setGauge(id, percent) {
+    const el = document.getElementById(id);
+    const circumference = 264; // 2 * pi * 42
+    const offset = circumference * (1 - Math.min(100, Math.max(0, percent)) / 100);
+    el.querySelector('.gauge-fill').style.strokeDashoffset = offset;
+    el.querySelector('.gauge-percent').textContent = Math.round(percent) + '%';
+  }
+
+  function setDiskGauge(percent) {
+    const circumference = 264;
+    const offset = circumference * (1 - Math.min(100, Math.max(0, percent)) / 100);
+    document.getElementById('gauge-disk-fill').style.strokeDashoffset = offset;
+    document.getElementById('gauge-disk-percent').textContent = Math.round(percent) + '%';
+  }
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock-time').textContent =
+      now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    document.getElementById('clock-date').textContent =
+      now.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'}).toUpperCase();
+
+    const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds();
+    document.getElementById('hand-hour').style.transform = `rotate(${h * 30 + m * 0.5}deg)`;
+    document.getElementById('hand-min').style.transform = `rotate(${m * 6}deg)`;
+    document.getElementById('hand-sec').style.transform = `rotate(${s * 6}deg)`;
+  }
+
+  const ULTRON_TOKEN = "__ULTRON_TOKEN__";
+
+  async function refreshStats() {
+    try {
+      const res = await fetch('/report', {headers: {'X-Ultron-Token': ULTRON_TOKEN}});
+      const data = await res.json();
+      setGauge('gauge-cpu', data.cpu.percent);
+      setGauge('gauge-mem', data.memory.percent);
+      const disk = (data.disks && data.disks[0]) ? data.disks[0].percent : 0;
+      setDiskGauge(disk);
+
+      const coreLoad = Math.round((data.cpu.percent + data.memory.percent + disk) / 3);
+      document.getElementById('core-percent').textContent = coreLoad + '%';
+
+      const battery = document.getElementById('battery-status');
+      const batteryVal = document.getElementById('battery-value');
+      const batterySub = document.getElementById('battery-sub');
+      const batteryFill = document.getElementById('battery-bar-fill');
+      if (data.battery) {
+        const pct = data.battery.percent;
+        const chg = data.battery.plugged_in;
+        battery.textContent = `${pct}% ${chg ? '(CHG)' : ''}`;
+        batteryVal.textContent = pct + '%';
+        batterySub.textContent = chg ? 'CHARGING' : 'ON BATTERY';
+        batteryFill.style.width = Math.min(100, Math.max(0, pct)) + '%';
+      } else {
+        battery.textContent = 'N/A';
+        batteryVal.textContent = 'N/A';
+        batterySub.textContent = '--';
+        batteryFill.style.width = '0%';
+      }
+      document.getElementById('network-status').textContent =
+        `${data.network.sent_gb} / ${data.network.recv_gb} GB`;
+      document.getElementById('net-value').textContent =
+        `${data.network.sent_gb} / ${data.network.recv_gb}`;
+    } catch (e) {
+      console.error('stats fetch failed', e);
+    }
+  }
+
+  async function runCmd(text) {
+    const toast = document.getElementById('reply-toast');
+    toast.textContent = 'Sending: ' + text + '...';
+    toast.classList.add('show');
+    try {
+      const res = await fetch('/command', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-Ultron-Token': ULTRON_TOKEN},
+        body: JSON.stringify({text: text})
+      });
+      const data = await res.json();
+      toast.textContent = data.reply || JSON.stringify(data);
+    } catch (e) {
+      toast.textContent = 'Error: ' + e;
+    }
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+  refreshStats();
+  setInterval(refreshStats, 5000);
+
+  // ---- Voice state websocket (same broadcaster main.py already runs) ----
+  function connectVoiceState() {
+    const ws = new WebSocket('ws://localhost:8765');
+    ws.onmessage = (evt) => {
+      try {
+        const data = JSON.parse(evt.data);
+        document.body.setAttribute('data-state', data.state || 'idle');
+        const transcriptEl = document.getElementById('voice-transcript');
+        if (data.text) {
+          transcriptEl.textContent = data.text;
+          clearTimeout(window._transcriptTimeout);
+          window._transcriptTimeout = setTimeout(() => { transcriptEl.textContent = ''; }, 6000);
+        }
+      } catch (e) { /* ignore malformed frames */ }
+    };
+    ws.onclose = () => setTimeout(connectVoiceState, 1500);
+    ws.onerror = () => ws.close();
+  }
+  connectVoiceState();
+</script>
+</body>
+</html>

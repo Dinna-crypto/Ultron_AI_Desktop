@@ -1,0 +1,430 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ULTRON</title>
+<style>
+  :root {
+    --void: #05060a;
+    --iron: #14171d;
+    --core-red: #ff2b1f;
+    --core-amber: #ffb238;
+    --core-gold: #d99a35;
+    --core-dim: #4a340f;
+    --text-cold: #d8dee6;
+  }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--void);
+    overflow: hidden;
+    font-family: 'Consolas', 'Courier New', monospace;
+    color: var(--text-cold);
+  }
+  #stage {
+    position: relative;
+    width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(217,154,53,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(217,154,53,0.03) 1px, transparent 1px);
+    background-size: 34px 34px;
+    pointer-events: none;
+  }
+
+  .bracket {
+    position: absolute; width: 46px; height: 46px;
+    border-color: var(--core-dim);
+    opacity: 0.55;
+  }
+  .bracket-tl { top: 14px; left: 14px; border-top: 1px solid; border-left: 1px solid; }
+  .bracket-br { bottom: 14px; right: 14px; border-bottom: 1px solid; border-right: 1px solid; }
+
+  .core-wrap {
+    position: relative;
+    width: 380px; height: 380px;
+  }
+  .core-wrap::before {
+    content: "";
+    position: absolute; inset: -60px;
+    background: radial-gradient(circle, rgba(217,154,53,0.18) 0%, rgba(217,154,53,0.05) 45%, transparent 72%);
+    pointer-events: none;
+    transition: background 0.6s ease;
+  }
+  body[data-state="thinking"] .core-wrap::before,
+  body[data-state="speaking"] .core-wrap::before,
+  body[data-state="booting"] .core-wrap::before {
+    background: radial-gradient(circle, rgba(255,43,31,0.20) 0%, rgba(255,43,31,0.05) 45%, transparent 72%);
+  }
+  body[data-state="gesture_active"] .core-wrap::before {
+    background: radial-gradient(circle, rgba(53,195,255,0.18) 0%, rgba(53,195,255,0.05) 45%, transparent 72%);
+  }
+  svg { width: 100%; height: 100%; overflow: visible; }
+
+  .burst-scatter { stroke: var(--core-amber); transition: stroke 0.5s ease; }
+  .burst-scatter-spin { animation: spin 55s linear infinite reverse; }
+
+  .burst-line { stroke: var(--core-gold); transition: stroke 0.5s ease; }
+  .burst-spin { animation: spin 90s linear infinite; }
+
+  .ring { fill: none; stroke: var(--core-dim); transition: stroke 0.4s ease; }
+  .ring-outer { stroke-width: 1.5; }
+  .ring-mid   { stroke-width: 2; stroke-dasharray: 6 10; }
+  .ring-inner { stroke-width: 3; }
+
+  .core-fill {
+    fill: var(--core-dim);
+    filter: blur(10px);
+    transition: fill 0.5s ease, opacity 0.5s ease;
+    transform-origin: center;
+  }
+  .core-glow {
+    fill: var(--core-gold);
+    opacity: 0.9;
+    filter: blur(2px);
+    transition: fill 0.5s ease;
+    transform-origin: center;
+  }
+
+  .spin-slow { animation: spin 18s linear infinite; }
+  .spin-rev  { animation: spin 26s linear infinite reverse; }
+  .spin-fast { animation: spin 4s linear infinite; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.85; }
+    50%      { transform: scale(1.12); opacity: 1; }
+  }
+
+  #status-label {
+    position: absolute;
+    bottom: 14%;
+    left: 50%;
+    transform: translateX(-50%);
+    letter-spacing: 4px;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: var(--core-amber);
+    opacity: 0.85;
+  }
+
+  #transcript {
+    position: absolute;
+    bottom: 6%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    color: rgba(216,222,230,0.55);
+    max-width: 70vw;
+    text-align: center;
+    min-height: 18px;
+  }
+
+  body[data-state="idle"] .ring          { stroke: var(--core-gold); opacity: 0.5; }
+  body[data-state="idle"] .core-fill,
+  body[data-state="idle"] .core-glow     { fill: var(--core-gold); }
+
+  body[data-state="listening"] .ring        { stroke: var(--core-amber); }
+  body[data-state="listening"] .core-fill,
+  body[data-state="listening"] .core-glow   { fill: var(--core-amber); }
+
+  body[data-state="thinking"] .ring         { stroke: var(--core-red); }
+  body[data-state="thinking"] .core-fill,
+  body[data-state="thinking"] .core-glow    { fill: var(--core-red); }
+  body[data-state="thinking"] .spin-fast    { animation-duration: 1.2s; }
+
+  body[data-state="speaking"] .ring         { stroke: var(--core-red); }
+  body[data-state="speaking"] .core-fill,
+  body[data-state="speaking"] .core-glow    { fill: var(--core-red); }
+
+  body[data-state="gesture_active"] .ring       { stroke: #35c3ff; }
+  body[data-state="gesture_active"] .core-fill,
+  body[data-state="gesture_active"] .core-glow  { fill: #35c3ff; }
+  body[data-state="gesture_active"] .burst-line { stroke: #35c3ff; }
+  body[data-state="gesture_active"] .burst-scatter { stroke: #35c3ff; }
+
+  body[data-state="sentry"] .ring        { stroke: #4ade80; opacity: 0.5; }
+  body[data-state="sentry"] .core-fill,
+  body[data-state="sentry"] .core-glow   { fill: #4ade80; }
+  body[data-state="sentry"] .burst-line,
+  body[data-state="sentry"] .burst-scatter { stroke: #4ade80; }
+  body[data-state="sentry"] .core-wrap::before {
+    background: radial-gradient(circle, rgba(74,222,128,0.18) 0%, rgba(74,222,128,0.05) 45%, transparent 72%);
+  }
+
+  #boot-flash {
+    position: absolute; inset: 0;
+    background: var(--core-red);
+    opacity: 0;
+    pointer-events: none;
+    display: none;
+  }
+  body[data-state="booting"] #boot-flash {
+    display: block;
+    animation: boot-flicker 0.9s ease-in-out infinite;
+  }
+  @keyframes boot-flicker {
+    0%, 100% { opacity: 0; }
+    50%      { opacity: 0.12; }
+  }
+  body[data-state="booting"] .ring        { stroke: var(--core-red); }
+  body[data-state="booting"] .core-fill,
+  body[data-state="booting"] .core-glow   { fill: var(--core-red); }
+  body[data-state="booting"] .burst-line  { stroke: var(--core-red); }
+  body[data-state="booting"] .burst-scatter { stroke: var(--core-red); }
+  body[data-state="booting"] .spin-fast   { animation-duration: 0.6s; }
+  body[data-state="booting"] .spin-slow   { animation-duration: 3s; }
+  body[data-state="booting"] .spin-rev    { animation-duration: 4s; }
+  body[data-state="booting"] .burst-spin  { animation-duration: 8s; }
+
+  #boot-progress {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    text-align: center;
+    color: var(--core-red);
+    letter-spacing: 3px;
+  }
+  body[data-state="booting"] #boot-progress { display: block; }
+  #boot-percent { font-size: 42px; font-weight: bold; }
+  #boot-bar-track {
+    width: 260px; height: 4px; background: var(--core-dim);
+    margin: 10px auto 0; overflow: hidden;
+  }
+  #boot-bar-fill {
+    height: 100%; width: 0%; background: var(--core-red);
+    transition: width 0.4s ease;
+  }
+</style>
+</head>
+<body data-state="idle">
+  <div class="bracket bracket-tl"></div>
+  <div class="bracket bracket-br"></div>
+  <div id="stage">
+    <div id="boot-flash"></div>
+    <div id="boot-progress">
+      <div id="boot-percent">0%</div>
+      <div id="boot-bar-track"><div id="boot-bar-fill"></div></div>
+    </div>
+    <div class="core-wrap">
+      <svg viewBox="0 0 400 400">
+        <g class="burst-spin" transform-origin="200 200">
+          <line class="burst-line" x1="260.7" y1="201.2" x2="333.7" y2="202.6" stroke-width="0.75" opacity="0.44"/>
+          <line class="burst-line" x1="286.2" y1="209.9" x2="336.3" y2="215.7" stroke-width="0.96" opacity="0.16"/>
+          <line class="burst-line" x1="274.4" y1="210.5" x2="317.2" y2="216.5" stroke-width="0.72" opacity="0.41"/>
+          <line class="burst-line" x1="264.1" y1="218.1" x2="370.6" y2="248.2" stroke-width="1.39" opacity="0.15"/>
+          <line class="burst-line" x1="274.5" y1="231.7" x2="348.9" y2="263.3" stroke-width="0.67" opacity="0.53"/>
+          <line class="burst-line" x1="257.2" y1="225.9" x2="304.2" y2="247.3" stroke-width="1.43" opacity="0.39"/>
+          <line class="burst-line" x1="268.4" y1="245.0" x2="355.6" y2="302.3" stroke-width="1.57" opacity="0.3"/>
+          <line class="burst-line" x1="268.3" y1="250.4" x2="360.2" y2="318.2" stroke-width="1.45" opacity="0.38"/>
+          <line class="burst-line" x1="245.0" y1="241.7" x2="294.5" y2="287.4" stroke-width="0.82" opacity="0.18"/>
+          <line class="burst-line" x1="245.2" y1="243.9" x2="297.9" y2="295.0" stroke-width="1.2" opacity="0.3"/>
+          <line class="burst-line" x1="242.3" y1="251.1" x2="288.2" y2="306.6" stroke-width="1.53" opacity="0.41"/>
+          <line class="burst-line" x1="235.0" y1="254.9" x2="303.7" y2="362.4" stroke-width="0.68" opacity="0.3"/>
+          <line class="burst-line" x1="232.7" y1="272.1" x2="276.8" y2="369.5" stroke-width="1.25" opacity="0.49"/>
+          <line class="burst-line" x1="223.9" y1="262.5" x2="239.6" y2="303.4" stroke-width="0.85" opacity="0.26"/>
+          <line class="burst-line" x1="230.6" y1="282.8" x2="281.0" y2="418.9" stroke-width="0.85" opacity="0.41"/>
+          <line class="burst-line" x1="220.7" y1="285.0" x2="243.2" y2="377.3" stroke-width="0.79" opacity="0.25"/>
+          <line class="burst-line" x1="208.5" y1="267.3" x2="222.4" y2="376.6" stroke-width="1.49" opacity="0.31"/>
+          <line class="burst-line" x1="207.6" y1="289.6" x2="216.0" y2="390.4" stroke-width="0.6" opacity="0.17"/>
+          <line class="burst-line" x1="200.8" y1="278.8" x2="202.1" y2="413.9" stroke-width="0.96" opacity="0.18"/>
+          <line class="burst-line" x1="189.4" y1="289.3" x2="177.2" y2="392.0" stroke-width="1.57" opacity="0.49"/>
+          <line class="burst-line" x1="187.3" y1="280.6" x2="168.4" y2="401.0" stroke-width="1.09" opacity="0.26"/>
+          <line class="burst-line" x1="179.2" y1="259.8" x2="149.0" y2="346.9" stroke-width="1.0" opacity="0.53"/>
+          <line class="burst-line" x1="170.1" y1="261.0" x2="126.0" y2="350.8" stroke-width="0.7" opacity="0.52"/>
+          <line class="burst-line" x1="164.2" y1="258.9" x2="103.7" y2="358.7" stroke-width="1.17" opacity="0.21"/>
+          <line class="burst-line" x1="155.7" y1="262.0" x2="78.2" y2="370.6" stroke-width="1.08" opacity="0.15"/>
+          <line class="burst-line" x1="163.4" y1="248.3" x2="71.9" y2="369.0" stroke-width="1.47" opacity="0.48"/>
+          <line class="burst-line" x1="158.5" y1="245.8" x2="61.0" y2="353.5" stroke-width="1.54" opacity="0.18"/>
+          <line class="burst-line" x1="153.3" y1="240.9" x2="54.6" y2="327.5" stroke-width="1.34" opacity="0.2"/>
+          <line class="burst-line" x1="138.3" y1="245.2" x2="80.3" y2="287.6" stroke-width="1.46" opacity="0.32"/>
+          <line class="burst-line" x1="136.2" y1="241.7" x2="29.4" y2="311.5" stroke-width="0.72" opacity="0.27"/>
+          <line class="burst-line" x1="126.2" y1="229.5" x2="40.2" y2="263.8" stroke-width="1.07" opacity="0.2"/>
+          <line class="burst-line" x1="135.3" y1="227.2" x2="33.4" y2="270.0" stroke-width="0.75" opacity="0.24"/>
+          <line class="burst-line" x1="125.3" y1="225.5" x2="61.5" y2="247.3" stroke-width="1.5" opacity="0.49"/>
+          <line class="burst-line" x1="134.8" y1="215.9" x2="17.9" y2="244.4" stroke-width="0.74" opacity="0.2"/>
+          <line class="burst-line" x1="122.9" y1="202.2" x2="26.2" y2="205.0" stroke-width="1.36" opacity="0.47"/>
+          <line class="burst-line" x1="137.2" y1="202.7" x2="45.5" y2="206.7" stroke-width="0.97" opacity="0.34"/>
+          <line class="burst-line" x1="120.4" y1="190.3" x2="-36.5" y2="171.1" stroke-width="0.61" opacity="0.31"/>
+          <line class="burst-line" x1="115.2" y1="186.6" x2="46.2" y2="175.6" stroke-width="0.71" opacity="0.33"/>
+          <line class="burst-line" x1="133.9" y1="182.5" x2="66.3" y2="164.7" stroke-width="1.52" opacity="0.33"/>
+          <line class="burst-line" x1="129.8" y1="169.5" x2="87.6" y2="151.2" stroke-width="1.6" opacity="0.48"/>
+          <line class="burst-line" x1="123.6" y1="156.8" x2="0.1" y2="87.0" stroke-width="0.68" opacity="0.34"/>
+          <line class="burst-line" x1="136.7" y1="165.6" x2="95.4" y2="143.1" stroke-width="0.92" opacity="0.54"/>
+          <line class="burst-line" x1="130.9" y1="153.1" x2="52.5" y2="100.1" stroke-width="0.97" opacity="0.53"/>
+          <line class="burst-line" x1="145.9" y1="145.7" x2="56.8" y2="56.3" stroke-width="0.67" opacity="0.27"/>
+          <line class="burst-line" x1="150.3" y1="140.7" x2="82.8" y2="60.2" stroke-width="1.32" opacity="0.17"/>
+          <line class="burst-line" x1="153.9" y1="140.7" x2="66.5" y2="28.4" stroke-width="0.67" opacity="0.53"/>
+          <line class="burst-line" x1="160.7" y1="147.5" x2="94.0" y2="58.3" stroke-width="1.24" opacity="0.24"/>
+          <line class="burst-line" x1="154.9" y1="125.9" x2="118.8" y2="66.5" stroke-width="1.15" opacity="0.4"/>
+          <line class="burst-line" x1="168.7" y1="129.1" x2="127.3" y2="35.1" stroke-width="1.53" opacity="0.23"/>
+          <line class="burst-line" x1="181.2" y1="135.5" x2="156.7" y2="51.5" stroke-width="1.24" opacity="0.27"/>
+          <line class="burst-line" x1="179.6" y1="120.0" x2="167.5" y2="72.8" stroke-width="1.0" opacity="0.55"/>
+          <line class="burst-line" x1="195.9" y1="137.9" x2="191.7" y2="72.5" stroke-width="0.79" opacity="0.52"/>
+          <line class="burst-line" x1="200.7" y1="113.6" x2="201.4" y2="29.3" stroke-width="0.67" opacity="0.48"/>
+          <line class="burst-line" x1="205.7" y1="121.9" x2="217.3" y2="-36.2" stroke-width="1.22" opacity="0.15"/>
+          <line class="burst-line" x1="212.3" y1="132.1" x2="233.6" y2="14.4" stroke-width="1.53" opacity="0.2"/>
+          <line class="burst-line" x1="210.7" y1="137.7" x2="228.8" y2="32.9" stroke-width="0.8" opacity="0.39"/>
+          <line class="burst-line" x1="222.3" y1="137.8" x2="261.5" y2="28.5" stroke-width="0.79" opacity="0.35"/>
+          <line class="burst-line" x1="237.9" y1="123.5" x2="260.6" y2="77.8" stroke-width="0.97" opacity="0.26"/>
+          <line class="burst-line" x1="234.2" y1="124.2" x2="282.2" y2="18.1" stroke-width="0.79" opacity="0.45"/>
+          <line class="burst-line" x1="240.6" y1="139.5" x2="263.5" y2="105.3" stroke-width="0.58" opacity="0.5"/>
+          <line class="burst-line" x1="250.9" y1="143.1" x2="344.3" y2="38.6" stroke-width="1.14" opacity="0.21"/>
+          <line class="burst-line" x1="245.2" y1="147.5" x2="341.7" y2="35.5" stroke-width="1.38" opacity="0.49"/>
+          <line class="burst-line" x1="252.3" y1="159.2" x2="307.4" y2="116.2" stroke-width="0.61" opacity="0.46"/>
+          <line class="burst-line" x1="260.6" y1="160.8" x2="356.7" y2="98.5" stroke-width="0.67" opacity="0.52"/>
+          <line class="burst-line" x1="278.9" y1="158.2" x2="400.2" y2="93.8" stroke-width="1.47" opacity="0.16"/>
+          <line class="burst-line" x1="264.0" y1="171.7" x2="402.8" y2="110.5" stroke-width="1.38" opacity="0.5"/>
+          <line class="burst-line" x1="264.6" y1="178.9" x2="392.5" y2="137.1" stroke-width="0.62" opacity="0.5"/>
+          <line class="burst-line" x1="265.1" y1="185.5" x2="399.8" y2="155.5" stroke-width="1.01" opacity="0.27"/>
+          <line class="burst-line" x1="266.2" y1="190.8" x2="308.6" y2="184.9" stroke-width="0.71" opacity="0.28"/>
+          <line class="burst-line" x1="288.9" y1="196.5" x2="362.4" y2="193.7" stroke-width="1.21" opacity="0.31"/>
+        </g>
+        <g class="burst-scatter-spin" transform-origin="200 200">
+          <line class="burst-scatter" x1="179.8" y1="240.3" x2="157.1" y2="285.8" stroke-width="0.47" opacity="0.26"/>
+          <line class="burst-scatter"     <line x1="176.2" y1="226.8" x2="147.7" y2="258.8" stroke-width="0.43" opacity="0.23"/>
+          <line class="burst-scatter"     <line x1="235.4" y1="216.6" x2="270.1" y2="232.9" stroke-width="1.14" opacity="0.14"/>
+          <line class="burst-scatter"     <line x1="215.5" y1="291.4" x2="226.8" y2="357.6" stroke-width="0.92" opacity="0.22"/>
+          <line class="burst-scatter"     <line x1="234.3" y1="194.8" x2="295.8" y2="185.6" stroke-width="0.66" opacity="0.14"/>
+          <line class="burst-scatter"     <line x1="244.9" y1="241.0" x2="289.2" y2="281.4" stroke-width="0.56" opacity="0.27"/>
+          <line class="burst-scatter"     <line x1="156.8" y1="148.5" x2="127.8" y2="113.9" stroke-width="0.46" opacity="0.12"/>
+          <line class="burst-scatter"     <line x1="226.8" y1="294.3" x2="237.3" y2="331.4" stroke-width="0.68" opacity="0.28"/>
+          <line class="burst-scatter"     <line x1="142.6" y1="217.4" x2="86.4" y2="234.4" stroke-width="1.03" opacity="0.17"/>
+          <line class="burst-scatter"     <line x1="126.3" y1="162.8" x2="70.0" y2="134.3" stroke-width="1.06" opacity="0.19"/>
+          <line class="burst-scatter"     <line x1="241.5" y1="194.8" x2="279.2" y2="190.1" stroke-width="1.08" opacity="0.15"/>
+          <line class="burst-scatter"     <line x1="166.2" y1="202.4" x2="114.5" y2="205.9" stroke-width="1.09" opacity="0.27"/>
+          <line class="burst-scatter"     <line x1="243.5" y1="156.7" x2="281.3" y2="119.2" stroke-width="0.93" opacity="0.27"/>
+          <line class="burst-scatter"     <line x1="90.3" y1="231.0" x2="25.9" y2="249.2" stroke-width="0.83" opacity="0.3"/>
+          <line class="burst-scatter"     <line x1="293.0" y1="237.3" x2="339.9" y2="256.1" stroke-width="1.29" opacity="0.35"/>
+          <line class="burst-scatter"     <line x1="185.2" y1="267.0" x2="174.0" y2="317.5" stroke-width="0.42" opacity="0.24"/>
+          <line class="burst-scatter"     <line x1="220.5" y1="236.3" x2="229.5" y2="252.2" stroke-width="1.09" opacity="0.14"/>
+          <line class="burst-scatter"     <line x1="201.0" y1="269.1" x2="202.0" y2="332.0" stroke-width="0.47" opacity="0.23"/>
+          <line class="burst-scatter"     <line x1="87.3" y1="163.8" x2="30.1" y2="145.5" stroke-width="1.18" opacity="0.18"/>
+          <line class="burst-scatter"     <line x1="143.2" y1="233.4" x2="88.4" y2="265.7" stroke-width="1.26" opacity="0.15"/>
+          <line class="burst-scatter"     <line x1="223.8" y1="247.6" x2="236.2" y2="272.5" stroke-width="0.84" opacity="0.28"/>
+          <line class="burst-scatter"     <line x1="197.6" y1="230.3" x2="194.5" y2="268.2" stroke-width="0.73" opacity="0.27"/>
+          <line class="burst-scatter"     <line x1="294.8" y1="171.2" x2="336.3" y2="158.6" stroke-width="0.96" opacity="0.3"/>
+          <line class="burst-scatter"     <line x1="313.1" y1="239.9" x2="367.7" y2="259.2" stroke-width="1.19" opacity="0.34"/>
+          <line class="burst-scatter"     <line x1="145.5" y1="243.7" x2="129.3" y2="256.7" stroke-width="0.97" opacity="0.12"/>
+          <line class="burst-scatter"     <line x1="246.4" y1="220.9" x2="268.2" y2="230.7" stroke-width="0.71" opacity="0.12"/>
+          <line class="burst-scatter"     <line x1="245.1" y1="200.1" x2="265.7" y2="200.1" stroke-width="0.73" opacity="0.11"/>
+          <line class="burst-scatter"     <line x1="264.4" y1="135.1" x2="280.7" y2="118.6" stroke-width="0.63" opacity="0.2"/>
+          <line class="burst-scatter"     <line x1="172.2" y1="231.9" x2="131.7" y2="278.4" stroke-width="1.29" opacity="0.24"/>
+          <line class="burst-scatter"     <line x1="161.6" y1="203.9" x2="141.1" y2="206.0" stroke-width="0.71" opacity="0.18"/>
+          <line class="burst-scatter"     <line x1="221.9" y1="159.4" x2="229.7" y2="145.1" stroke-width="1.26" opacity="0.26"/>
+          <line class="burst-scatter"     <line x1="251.0" y1="267.1" x2="261.0" y2="280.3" stroke-width="0.88" opacity="0.39"/>
+          <line class="burst-scatter"     <line x1="265.1" y1="124.6" x2="284.3" y2="102.4" stroke-width="0.73" opacity="0.15"/>
+          <line class="burst-scatter"     <line x1="211.4" y1="117.5" x2="219.4" y2="60.2" stroke-width="0.7" opacity="0.17"/>
+          <line class="burst-scatter"     <line x1="248.4" y1="81.0" x2="271.8" y2="23.7" stroke-width="1.13" opacity="0.35"/>
+          <line class="burst-scatter"     <line x1="196.7" y1="147.4" x2="193.9" y2="104.1" stroke-width="0.72" opacity="0.11"/>
+          <line class="burst-scatter"     <line x1="257.1" y1="210.1" x2="285.9" y2="215.2" stroke-width="1.02" opacity="0.39"/>
+          <line class="burst-scatter"     <line x1="83.0" y1="240.3" x2="17.5" y2="262.8" stroke-width="1.26" opacity="0.21"/>
+          <line class="burst-scatter"     <line x1="209.7" y1="251.8" x2="214.5" y2="277.2" stroke-width="0.58" opacity="0.29"/>
+          <line class="burst-scatter"     <line x1="292.4" y1="133.1" x2="325.9" y2="108.9" stroke-width="0.99" opacity="0.34"/>
+          <line class="burst-scatter"     <line x1="282.7" y1="248.8" x2="338.8" y2="281.8" stroke-width="1.1" opacity="0.33"/>
+          <line class="burst-scatter"     <line x1="152.6" y1="206.6" x2="94.8" y2="214.6" stroke-width="0.7" opacity="0.34"/>
+          <line class="burst-scatter"     <line x1="268.5" y1="187.7" x2="305.0" y2="181.1" stroke-width="1.25" opacity="0.32"/>
+          <line class="burst-scatter"     <line x1="220.6" y1="237.4" x2="231.8" y2="257.9" stroke-width="1.21" opacity="0.34"/>
+          <line class="burst-scatter"     <line x1="268.4" y1="289.5" x2="310.2" y2="344.3" stroke-width="0.99" opacity="0.21"/>
+          <line class="burst-scatter"     <line x1="158.9" y1="187.0" x2="143.8" y2="182.3" stroke-width="1.27" opacity="0.29"/>
+          <line class="burst-scatter"     <line x1="78.4" y1="179.5" x2="40.0" y2="173.0" stroke-width="1.18" opacity="0.35"/>
+          <line class="burst-scatter"     <line x1="213.4" y1="253.5" x2="220.9" y2="283.7" stroke-width="0.62" opacity="0.28"/>
+          <line class="burst-scatter"     <line x1="195.8" y1="271.8" x2="194.5" y2="293.9" stroke-width="1.22" opacity="0.21"/>
+          <line class="burst-scatter"     <line x1="114.7" y1="223.0" x2="52.2" y2="239.8" stroke-width="0.78" opacity="0.38"/>
+          <line class="burst-scatter"     <line x1="116.8" y1="199.1" x2="73.0" y2="198.7" stroke-width="0.42" opacity="0.23"/>
+          <line class="burst-scatter"     <line x1="212.4" y1="227.7" x2="236.5" y2="281.6" stroke-width="0.56" opacity="0.24"/>
+          <line class="burst-scatter"     <line x1="186.7" y1="115.4" x2="181.6" y2="82.9" stroke-width="0.87" opacity="0.27"/>
+          <line class="burst-scatter"     <line x1="208.7" y1="160.3" x2="218.5" y2="115.6" stroke-width="0.62" opacity="0.18"/>
+          <line class="burst-scatter"     <line x1="211.3" y1="120.0" x2="217.7" y2="74.6" stroke-width="1.08" opacity="0.37"/>
+          <line class="burst-scatter"     <line x1="114.5" y1="231.9" x2="74.4" y2="246.8" stroke-width="0.86" opacity="0.31"/>
+          <line class="burst-scatter"     <line x1="120.4" y1="224.6" x2="80.9" y2="236.8" stroke-width="1.25" opacity="0.31"/>
+          <line class="burst-scatter"     <line x1="288.7" y1="113.0" x2="309.6" y2="92.5" stroke-width="0.9" opacity="0.38"/>
+          <line class="burst-scatter"     <line x1="223.4" y1="163.1" x2="235.0" y2="144.8" stroke-width="0.8" opacity="0.12"/>
+          <line class="burst-scatter"     <line x1="202.2" y1="237.2" x2="205.2" y2="289.0" stroke-width="1.11" opacity="0.37"/>
+          <line class="burst-scatter"     <line x1="257.4" y1="283.8" x2="286.4" y2="326.2" stroke-width="0.53" opacity="0.36"/>
+          <line class="burst-scatter"     <line x1="250.9" y1="189.5" x2="316.9" y2="175.8" stroke-width="0.76" opacity="0.25"/>
+          <line class="burst-scatter"     <line x1="313.0" y1="192.8" x2="336.8" y2="191.3" stroke-width="0.79" opacity="0.25"/>
+          <line class="burst-scatter"     <line x1="173.7" y1="242.0" x2="156.4" y2="269.6" stroke-width="1.05" opacity="0.11"/>
+          <line class="burst-scatter"     <line x1="130.2" y1="175.3" x2="115.1" y2="170.0" stroke-width="0.7" opacity="0.29"/>
+          <line class="burst-scatter"     <line x1="163.7" y1="197.2" x2="94.7" y2="191.9" stroke-width="1.11" opacity="0.39"/>
+          <line class="burst-scatter"     <line x1="244.7" y1="234.6" x2="258.3" y2="245.1" stroke-width="1.1" opacity="0.18"/>
+          <line class="burst-scatter"     <line x1="249.6" y1="252.5" x2="294.3" y2="299.9" stroke-width="1.14" opacity="0.18"/>
+          <line class="burst-scatter"     <line x1="272.1" y1="298.3" x2="299.5" y2="335.8" stroke-width="1.03" opacity="0.13"/>
+          <line class="burst-scatter"     <line x1="292.4" y1="234.9" x2="328.3" y2="248.5" stroke-width="0.47" opacity="0.38"/>
+          <line class="burst-scatter"     <line x1="126.9" y1="117.6" x2="113.8" y2="103.0" stroke-width="1.17" opacity="0.12"/>
+          <line class="burst-scatter"     <line x1="249.1" y1="142.8" x2="271.0" y2="117.2" stroke-width="0.9" opacity="0.38"/>
+          <line class="burst-scatter"     <line x1="195.2" y1="242.7" x2="190.3" y2="286.4" stroke-width="0.61" opacity="0.13"/>
+          <line class="burst-scatter"     <line x1="218.5" y1="229.8" x2="232.3" y2="251.9" stroke-width="0.68" opacity="0.19"/>
+          <line class="burst-scatter"     <line x1="203.5" y1="141.1" x2="206.1" y2="98.7" stroke-width="0.56" opacity="0.2"/>
+          <line class="burst-scatter"     <line x1="254.7" y1="206.3" x2="270.4" y2="208.1" stroke-width="1.06" opacity="0.27"/>
+          <line class="burst-scatter"     <line x1="228.8" y1="271.9" x2="253.4" y2="333.6" stroke-width="0.5" opacity="0.35"/>
+          <line class="burst-scatter"     <line x1="127.6" y1="232.9" x2="72.2" y2="258.0" stroke-width="0.75" opacity="0.25"/>
+          <line class="burst-scatter"     <line x1="151.1" y1="81.4" x2="138.2" y2="50.2" stroke-width="1.15" opacity="0.31"/>
+          <line class="burst-scatter"     <line x1="153.7" y1="146.9" x2="131.3" y2="121.1" stroke-width="0.45" opacity="0.14"/>
+          <line class="burst-scatter"     <line x1="294.0" y1="244.7" x2="320.2" y2="257.2" stroke-width="0.55" opacity="0.13"/>
+          <line class="burst-scatter"     <line x1="263.5" y1="101.7" x2="291.7" y2="58.1" stroke-width="0.65" opacity="0.17"/>
+          <line class="burst-scatter"     <line x1="179.7" y1="273.2" x2="173.4" y2="296.0" stroke-width="0.8" opacity="0.18"/>
+          <line class="burst-scatter"     <line x1="323.6" y1="169.7" x2="367.4" y2="159.0" stroke-width="0.62" opacity="0.39"/>
+          <line class="burst-scatter"     <line x1="176.0" y1="261.1" x2="170.5" y2="275.1" stroke-width="0.74" opacity="0.24"/>
+          <line class="burst-scatter"     <line x1="149.9" y1="199.1" x2="107.2" y2="198.4" stroke-width="0.4" opacity="0.18"/>
+          <line class="burst-scatter"     <line x1="259.1" y1="237.4" x2="273.7" y2="246.6" stroke-width="0.42" opacity="0.19"/>
+          <line class="burst-scatter"     <line x1="209.5" y1="288.0" x2="214.3" y2="331.9" stroke-width="1.08" opacity="0.3"/>
+          <line class="burst-scatter"     <line x1="175.0" y1="84.8" x2="167.3" y2="49.2" stroke-width="0.69" opacity="0.4"/>
+          <line class="burst-scatter"     <line x1="260.5" y1="282.7" x2="290.2" y2="323.3" stroke-width="0.44" opacity="0.35"/>
+        </g>
+        <g class="spin-slow" transform-origin="200 200">
+          <circle class="ring ring-outer" cx="200" cy="200" r="180"/>
+        </g>
+        <g class="spin-rev" transform-origin="200 200">
+          <circle class="ring ring-mid" cx="200" cy="200" r="140"/>
+        </g>
+        <g class="spin-fast" transform-origin="200 200">
+          <circle class="ring ring-inner" cx="200" cy="200" r="100"/>
+        </g>
+        <circle class="core-fill pulse" cx="200" cy="200" r="55"/>
+        <circle class="core-glow pulse" cx="200" cy="200" r="30"/>
+      </svg>
+    </div>
+    <div id="status-label">IDLE</div>
+    <div id="transcript"></div>
+  </div>
+
+<script>
+  const body = document.body;
+  const label = document.getElementById('status-label');
+  const transcript = document.getElementById('transcript');
+  const bootPercent = document.getElementById('boot-percent');
+  const bootBar = document.getElementById('boot-bar-fill');
+
+  function setState(state, text, progress) {
+    body.setAttribute('data-state', state);
+    label.textContent = state.replace('_', ' ').toUpperCase();
+    if (text !== undefined) transcript.textContent = text;
+    if (progress !== undefined && progress !== null) {
+      bootPercent.textContent = Math.round(progress) + '%';
+      bootBar.style.width = Math.round(progress) + '%';
+    }
+  }
+
+  function connect() {
+    const ws = new WebSocket('ws://localhost:8765');
+    ws.onmessage = (evt) => {
+      try {
+        const data = JSON.parse(evt.data);
+        setState(data.state || 'idle', data.text || '', data.progress);
+      } catch (e) { /* ignore malformed frames */ }
+    };
+    ws.onclose = () => setTimeout(connect, 1500);
+    ws.onerror = () => ws.close();
+  }
+  connect();
+</script>
+</body>
+</html>

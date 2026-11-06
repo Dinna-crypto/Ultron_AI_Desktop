@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# Build files
+build/
+dist/
+*.spec
+
+# Logs and cache
+*.log
+.cache/
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Google OAuth credentials
+credentials.json
+token.json
+
+# Environment secrets
+.env
+.env.*
+!.env.example
